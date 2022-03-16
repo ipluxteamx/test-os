@@ -1,0 +1,28 @@
+   name: build-os
+
+   on:
+     push:
+       branches: [ master ]
+     pull_request:
+       branches: [ master ]
+
+   jobs:
+    build:
+      runs-on: ubuntu-latest
+      steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
+      - name: build os
+        run: make build
+      - name: git clone limine
+        run: git clone https://github.com/limine-bootloader/limine.git --branch=v2.0-branch-binary --depth=1
+      - name: make limine
+        run: make -C limine
+      - name: make dir
+        run: mkdir -p iso_root
+      - name: Copy the relevant files over
+        run: cp -v myos.elf limine.cfg limine/limine.sys \ limine/limine-cd.bin limine/limine-eltorito-efi.bin iso_root/
+      - name: Create the bootable ISO
+        run: xorriso -as mkisofs -b limine-cd.bin \ -no-emul-boot -boot-load-size 4 -boot-info-table \ --efi-boot limine-eltorito-efi.bin \ -efi-boot-part --efi-boot-image --protective-msdos-label \ iso_root -o image.iso
+      - name: Install Limine stage 1 and 2 for legacy BIOS boot
+        run: ./limine/limine-install image.iso
